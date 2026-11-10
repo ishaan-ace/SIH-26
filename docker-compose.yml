@@ -1,48 +1,17 @@
-version: '3.8'
+
 
 services:
-  mongodb:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo-data:/data/db
-    restart: unless-stopped
-
-  redis:
-    image: redis:alpine
-    ports:
-      - "6379:6379"
-    restart: unless-stopped
-
-  analyzer:
-    build: 
-      context: ./analyzer
-      dockerfile: Dockerfile
-    depends_on:
-      - redis
-    environment:
-      - REDIS_URL=redis:6379
-    volumes:
-      - ./shared/pcaps:/pcaps
-    restart: unless-stopped
-
   backend:
     build: 
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: backend/Dockerfile
     ports:
       - "5000:5000"
-    depends_on:
-      - mongodb
-      - redis
-    environment:
-      - PORT=5000
-      - MONGO_URI=mongodb://mongodb:27017/securemailscope
-      - REDIS_URL=redis://redis:6379
-      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    env_file:
+      - ./backend/.env
     volumes:
-      - ./shared/pcaps:/pcaps
+      - ./backend/src:/app/src
+      - ./shared/pcaps:/shared/pcaps
     restart: unless-stopped
 
   frontend:
@@ -50,12 +19,11 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "5173:5173"
     environment:
       - VITE_API_URL=http://localhost:5000
+    volumes:
+      - ./frontend/src:/app/src
     depends_on:
       - backend
     restart: unless-stopped
-
-volumes:
-  mongo-data:

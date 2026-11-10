@@ -1,12 +1,23 @@
-FROM node:20-alpine
+# Stage 1: Build the Go Analyzer (Pure Go, no CGO required!)
+FROM golang:alpine AS go-builder
+WORKDIR /go/src/app
+# Context is root (.), so we copy the analyzer folder
+COPY ./analyzer .
+RUN CGO_ENABLED=0 GOOS=linux go build -o analyzer .
 
+# Stage 2: Setup Node Backend
+FROM node:20-alpine
 WORKDIR /app
 
-COPY package*.json ./
+# Install dependencies
+COPY ./backend/package*.json ./
 RUN npm install
 
-COPY . .
+# Copy backend source code
+COPY ./backend .
 
-RUN npm run build || echo "No build script yet"
+# Copy the compiled go binary from Stage 1 to the exact path Node expects
+RUN mkdir -p /analyzer
+COPY --from=go-builder /go/src/app/analyzer /analyzer/analyzer.exe
 
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]
